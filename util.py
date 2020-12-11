@@ -4,6 +4,7 @@ Returns a ready-to-be-used MNIST dataset (you must have the initial file, howeve
 """
 
 import numpy as np
+import csv
 
 
 # sigmoid
@@ -50,7 +51,7 @@ def cost(T, pY_softmax):
 
 
 # predict
-def predict(pY_softmax):
+def prediction(pY_softmax):
     return np.argmax(pY_softmax, axis=1)
 
 
@@ -61,3 +62,37 @@ def classification_rate(T, pY):
 
 def error_rate(T, pY):
         return np.mean(T != pY)
+
+
+def load_example_data(binary=False, split=False, split_by=0.33):
+    # read MNIST data
+    with open("train.csv", 'r') as f:
+        csv_file = csv.reader(f, delimiter=',')
+        next(csv_file)
+        content = []
+        for row in csv_file:
+            content.append(row)
+
+    # turn data into numpy array and shuffle
+    data = np.array(content, dtype=np.float32)
+    np.random.shuffle(data)
+    Y = data[:, 0].astype(np.int32)
+    X = data[:, 1:]
+
+    # normalize X
+    X_mean = X.mean(axis=0)
+    X_std = X.std(axis=0)
+    np.place(X_std, X_std==0, 1)
+
+    X = (X - X_mean) / X_std
+
+    if split:
+        N = X.shape[0]
+        split_amount = int(N*split_by)
+        Xtrain, Ytrain = X[:-split_amount], Y[:-split_amount]
+        Xtest, Ytest = X[-split_amount:], Y[-split_amount:]
+        return Xtrain, Ytrain, Xtest, Ytest
+
+    else:
+        return X, Y
+
