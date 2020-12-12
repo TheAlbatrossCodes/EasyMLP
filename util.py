@@ -12,14 +12,29 @@ def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
 
+# derivation of sigmoid
+def deriv_sigmoid(x):
+    return x * (1 - x)
+
+
 # tanh
 def tanh(z):
     return np.tanh(z)
 
 
+# derivative of tanh
+def deriv_tanh(x):
+    return 1 - x**2
+
+
 # relu
 def relu(z):
     return z * (z > 0)
+
+
+# derivative of relu
+def deriv_relu(x):
+    return x * (x > 0)
 
 
 # softmax
@@ -95,4 +110,3 @@ def load_example_data(binary=False, split=False, split_by=0.33):
 
     else:
         return X, Y
-

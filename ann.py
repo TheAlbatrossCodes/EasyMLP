@@ -7,7 +7,7 @@ class ANN():
     def __init__(self):
         pass
     
-    def generate_weights(self, D, hidden_layer_sizes, K): #[400,400,400]
+    def generate_weights(self, D, hidden_layer_sizes, K):
         size = len(hidden_layer_sizes)
         weights = {}
         biases = {}
@@ -22,21 +22,24 @@ class ANN():
         
         return weights, biases
 
-    def forward(self, X, weights, biases):
+    def forward(self, X, weights, biases, activation_func='relu'):
+        activate = {'relu':relu, 'tanh': tanh, 'sigmoid':sigmoid}
         layers = len(weights.keys())
         Z = {}
-        Z[0] = relu(X.dot(weights[0]) + biases[0])
+        Z[0] = activate[activation_func](X.dot(weights[0]) + biases[0])
 
         for i in range(layers - 2):
             z_list = list(Z.keys())
-            Z[i+1] = relu(Z[z_list[-1]].dot(weights[i+1]) + biases[i+1])
+            Z[i+1] = activate[activation_func](Z[z_list[-1]].dot(weights[i+1]) + biases[i+1])
             
         z_list = list(Z.keys())
         pY = softmax(Z[z_list[-1]].dot(weights[layers-1]) + biases[layers-1])
 
         return Z, pY
     
-    def gradients(self, X, Y, weights, biases, Z, pY):
+    def gradients(self, X, Y, weights, biases, Z, pY, activation_func='relu'):
+        activate_deriv = {'relu':deriv_relu, 'tanh': deriv_tanh, 'sigmoid':deriv_sigmoid}
+        
         n_grad = len(weights.keys())
         n_z = len(Z.keys())
         
@@ -47,10 +50,10 @@ class ANN():
         w_grad[n_grad-1] = Z[n_z-1].T.dot(pY - Y)
         b_grad[n_grad-1] = (pY - Y).sum(axis=0)
         
-        dZ[n_z - 1] = (pY - Y).dot(weights[n_z].T) * Z[n_z - 1] * (Z[n_z-1] > 0)
+        dZ[n_z - 1] = (pY - Y).dot(weights[n_z].T) * activate_deriv[activation_func](Z[n_z - 1])
 
         for i in reversed(range(n_grad - 2)):
-            dZ[i] = dZ[i+1].dot(weights[i + 1].T) * Z[i] * (Z[i] > 0)
+            dZ[i] = dZ[i+1].dot(weights[i + 1].T) * activate_deriv[activation_func](Z[i])
         
         n_dZ = len(dZ.keys())
         for j in reversed(range(n_dZ)):
@@ -70,7 +73,7 @@ class ANN():
             biases[i] = biases[i] - lr * (b_grad[i] + reg*biases[i])
         return weights, biases
 
-    def train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, minibatch=True, batch_size=512):
+    def train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func='relu', minibatch=True, batch_size=512):
         Ytrain_ind = y2indicator(Ytrain)
         N = Xtrain.shape[0]
         no_batch = N // batch_size
@@ -84,9 +87,9 @@ class ANN():
                     X = tmp_x[no_batch*batch_size:no_batch*batch_size+batch_size]
                     Y = tmp_y[no_batch*batch_size:no_batch*batch_size+batch_size]
                     
-                    Z, pY = self.forward(X, weights, biases)
+                    Z, pY = self.forward(X, weights, biases, activation_func)
 
-                    w_grad, b_grad = self.gradients(X, Y, weights, biases, Z, pY)
+                    w_grad, b_grad = self.gradients(X, Y, weights, biases, Z, pY, activation_func)
                     weights, biases = self.gradient_descent(w_grad, b_grad, weights, biases, lr, reg)
                 
                     if e % 100 == 0 and i % 10 == 0:
@@ -116,13 +119,13 @@ class ANN():
         return np.mean(predicted_y == actual_y)
 
 
-    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, show_fig=True):
+    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, activation_func='relu', show_fig=True):
         X, Y = shuffle(X, Y)
 
         D = X.shape[1]
         K = len(set(Y))
         self.weights, self.biases = self.generate_weights(D, hidden_layer_sizes, K)
-        self.train(epochs, X, Y, self.weights, self.biases, lr, reg)
+        self.train(epochs, X, Y, self.weights, self.biases, lr, reg, activation_func)
 
 
         
@@ -130,7 +133,7 @@ class ANN():
 Xtrain, Ytrain, Xtest, Ytest = load_example_data(split=True)
 
 test = ANN()
-test.fit(Xtrain, Ytrain, [200,200])
+test.fit(Xtrain, Ytrain, [200], activation_func='sigmoid')
 pred = test.predict(Xtest)
 score = test.score(pred, Ytest)
 print("Final training score: {}".format(score))
