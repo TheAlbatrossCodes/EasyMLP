@@ -37,7 +37,7 @@ class ANN():
 
         return Z, pY
     
-    def gradients(self, X, Y, weights, biases, Z, pY, activation_func='relu'):
+    def gradients(self, X, Y, weights, biases, Z, pY, activation_func):
         activate_deriv = {'relu':deriv_relu, 'tanh': deriv_tanh, 'sigmoid':deriv_sigmoid}
         
         n_grad = len(weights.keys())
@@ -66,50 +66,57 @@ class ANN():
 
         return w_grad, b_grad    
 
-    def gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg):
+    def gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg, momentum, beta=0.9):
         n_weights = len(weights.keys())
         for i in range(n_weights):
-            weights[i] = weights[i] - lr * (w_grad[i] + reg*weights[i])
-            biases[i] = biases[i] - lr * (b_grad[i] + reg*biases[i])
+            if momentum:
+                self.Vw[i] = beta * self.Vw[i] - lr * (w_grad[i] + reg*weights[i])
+                self.Vb[i] = beta * self.Vb[i] - lr * (b_grad[i] + reg*biases[i])
+                weights[i] = weights[i] + self.Vw[i]
+                biases[i] = biases[i] + self.Vb[i]
+            else:
+                weights[i] = weights[i] - lr * (w_grad[i] + reg*weights[i])
+                biases[i] = biases[i] - lr * (b_grad[i] + reg*biases[i])
+        
         return weights, biases
+        
 
-    def train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func='relu', minibatch=True, batch_size=512):
+    def train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, batch_size=512):
         Ytrain_ind = y2indicator(Ytrain)
         N = Xtrain.shape[0]
         no_batch = N // batch_size
         train_cost = []
+        if momentum:
+            self.Vw = {key: 0 for key in weights.keys()}
+            self.Vb = {key: 0 for key in biases.keys()}
 
-        if minibatch is True:
-            for e in range(epochs):
-                tmp_x, tmp_y = shuffle(Xtrain, Ytrain_ind)
-                
-                for i in range(no_batch):
-                    X = tmp_x[no_batch*batch_size:no_batch*batch_size+batch_size]
-                    Y = tmp_y[no_batch*batch_size:no_batch*batch_size+batch_size]
-                    
-                    Z, pY = self.forward(X, weights, biases, activation_func)
-
-                    w_grad, b_grad = self.gradients(X, Y, weights, biases, Z, pY, activation_func)
-                    weights, biases = self.gradient_descent(w_grad, b_grad, weights, biases, lr, reg)
-                
-                    if e % 100 == 0 and i % 10 == 0:
-                        _, pY = self.forward(Xtrain, weights, biases)
-                        ctrain = cost(Ytrain_ind, pY)
-                        train_cost.append(ctrain)
-                        pred = prediction(pY)
-                        e_rate = error_rate(Ytrain, pred) 
-                        print("Epoch:{}, Batch: {}, Cost: {}, Error Rate:{}".format(e, i,ctrain, e_rate))
+        for e in range(epochs):
+            tmp_x, tmp_y = shuffle(Xtrain, Ytrain_ind)
             
-            _, pY = self.forward(Xtrain, weights, biases)
-            ctrain = cost(Ytrain_ind, pY)
-            pred = prediction(pY)
-            e_rate = error_rate(Ytrain, pred) 
-            print("Final cost:{}, Final error rate: {}".format(ctrain, e_rate))
-        
-        else:
-            pass
+            for i in range(no_batch):
+                X = tmp_x[no_batch*batch_size:no_batch*batch_size+batch_size]
+                Y = tmp_y[no_batch*batch_size:no_batch*batch_size+batch_size]
+                
+                Z, pY = self.forward(X, weights, biases, activation_func)
 
-    
+                w_grad, b_grad = self.gradients(X, Y, weights, biases, Z, pY, activation_func)
+                weights, biases = self.gradient_descent(w_grad, b_grad, weights, biases, lr, reg, momentum=momentum)
+            
+                if e % 100 == 0 and i % 10 == 0:
+                    _, pY = self.forward(Xtrain, weights, biases)
+                    ctrain = cost(Ytrain_ind, pY)
+                    train_cost.append(ctrain)
+                    pred = prediction(pY)
+                    e_rate = error_rate(Ytrain, pred) 
+                    print("Epoch:{}, Batch: {}, Cost: {}, Error Rate:{}".format(e, i,ctrain, e_rate))
+        
+        _, pY = self.forward(Xtrain, weights, biases)
+        ctrain = cost(Ytrain_ind, pY)
+        pred = prediction(pY)
+        e_rate = error_rate(Ytrain, pred) 
+        print("Final cost:{}, Final error rate: {}".format(ctrain, e_rate))
+        
+
     def predict(self, Xtest):
          _, pYtest = self.forward(Xtest, self.weights, self.biases)
          return prediction(pYtest)
@@ -119,13 +126,13 @@ class ANN():
         return np.mean(predicted_y == actual_y)
 
 
-    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, activation_func='relu', show_fig=True):
+    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, momentum=False, activation_func='relu', show_fig=True):
         X, Y = shuffle(X, Y)
 
         D = X.shape[1]
         K = len(set(Y))
         self.weights, self.biases = self.generate_weights(D, hidden_layer_sizes, K)
-        self.train(epochs, X, Y, self.weights, self.biases, lr, reg, activation_func)
+        self.train(epochs, X, Y, self.weights, self.biases, lr, reg, momentum=momentum, activation_func=activation_func)
 
 
         
@@ -133,7 +140,7 @@ class ANN():
 Xtrain, Ytrain, Xtest, Ytest = load_example_data(split=True)
 
 test = ANN()
-test.fit(Xtrain, Ytrain, [200], activation_func='sigmoid')
+test.fit(Xtrain, Ytrain, [200], epochs=500, momentum=True)
 pred = test.predict(Xtest)
 score = test.score(pred, Ytest)
 print("Final training score: {}".format(score))
