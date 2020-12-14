@@ -7,7 +7,7 @@ class ANN():
     def __init__(self):
         pass
     
-    def generate_weights(self, D, hidden_layer_sizes, K):
+    def __generate_weights(self, D, hidden_layer_sizes, K):
         size = len(hidden_layer_sizes)
         weights = {}
         biases = {}
@@ -22,7 +22,7 @@ class ANN():
         
         return weights, biases
 
-    def forward(self, X, weights, biases, activation_func='relu'):
+    def __forward(self, X, weights, biases, activation_func='relu'):
         activate = {'relu':relu, 'tanh': tanh, 'sigmoid':sigmoid}
         layers = len(weights.keys())
         Z = {}
@@ -37,7 +37,7 @@ class ANN():
 
         return Z, pY
     
-    def gradients(self, X, Y, weights, biases, Z, pY, activation_func):
+    def __gradients(self, X, Y, weights, biases, Z, pY, activation_func):
         activate_deriv = {'relu':deriv_relu, 'tanh': deriv_tanh, 'sigmoid':deriv_sigmoid}
         
         n_grad = len(weights.keys())
@@ -66,7 +66,7 @@ class ANN():
 
         return w_grad, b_grad    
 
-    def gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg, momentum, beta=0.9):
+    def __gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg, momentum, beta=0.9):
         n_weights = len(weights.keys())
         for i in range(n_weights):
             if momentum:
@@ -79,9 +79,9 @@ class ANN():
                 biases[i] = biases[i] - lr * (b_grad[i] + reg*biases[i])
         
         return weights, biases
-        
 
-    def train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, batch_size=512):
+
+    def __train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, batch_size=512):
         Ytrain_ind = y2indicator(Ytrain)
         N = Xtrain.shape[0]
         no_batch = N // batch_size
@@ -97,28 +97,28 @@ class ANN():
                 X = tmp_x[no_batch*batch_size:no_batch*batch_size+batch_size]
                 Y = tmp_y[no_batch*batch_size:no_batch*batch_size+batch_size]
                 
-                Z, pY = self.forward(X, weights, biases, activation_func)
+                Z, pY = self.__forward(X, weights, biases, activation_func)
 
-                w_grad, b_grad = self.gradients(X, Y, weights, biases, Z, pY, activation_func)
-                weights, biases = self.gradient_descent(w_grad, b_grad, weights, biases, lr, reg, momentum=momentum)
+                w_grad, b_grad = self.__gradients(X, Y, weights, biases, Z, pY, activation_func)
+                weights, biases = self.__gradient_descent(w_grad, b_grad, weights, biases, lr, reg, momentum=momentum)
             
-                if e % 100 == 0 and i % 10 == 0:
-                    _, pY = self.forward(Xtrain, weights, biases)
-                    ctrain = cost(Ytrain_ind, pY)
-                    train_cost.append(ctrain)
-                    pred = prediction(pY)
-                    e_rate = error_rate(Ytrain, pred) 
-                    print("Epoch:{}, Batch: {}, Cost: {}, Error Rate:{}".format(e, i,ctrain, e_rate))
+            if e % 100 == 0:
+                _, pY = self.__forward(Xtrain, weights, biases)
+                ctrain = cost(Ytrain_ind, pY)
+                train_cost.append(ctrain)
+                pred = prediction(pY)
+                e_rate = error_rate(Ytrain, pred) 
+                print("Epoch: {}, Train cost: {:.5f}, Error rate: {:.2f}".format(e, ctrain, e_rate))
         
-        _, pY = self.forward(Xtrain, weights, biases)
+        _, pY = self.__forward(Xtrain, weights, biases)
         ctrain = cost(Ytrain_ind, pY)
         pred = prediction(pY)
         e_rate = error_rate(Ytrain, pred) 
-        print("Final cost:{}, Final error rate: {}".format(ctrain, e_rate))
+        print("\nFinal cost: {:.5f}, Final error rate: {:.2f}".format(ctrain, e_rate))
         
 
     def predict(self, Xtest):
-         _, pYtest = self.forward(Xtest, self.weights, self.biases)
+         _, pYtest = self.__forward(Xtest, self.weights, self.biases)
          return prediction(pYtest)
 
 
@@ -131,8 +131,8 @@ class ANN():
 
         D = X.shape[1]
         K = len(set(Y))
-        self.weights, self.biases = self.generate_weights(D, hidden_layer_sizes, K)
-        self.train(epochs, X, Y, self.weights, self.biases, lr, reg, momentum=momentum, activation_func=activation_func)
+        self.weights, self.biases = self.__generate_weights(D, hidden_layer_sizes, K)
+        self.__train(epochs, X, Y, self.weights, self.biases, lr, reg, momentum=momentum, activation_func=activation_func)
 
 
         
@@ -140,7 +140,8 @@ class ANN():
 Xtrain, Ytrain, Xtest, Ytest = load_example_data(split=True)
 
 test = ANN()
-test.fit(Xtrain, Ytrain, [200], epochs=500, momentum=True)
+test.fit(Xtrain, Ytrain, [200], epochs=500, momentum=False)
+
 pred = test.predict(Xtest)
 score = test.score(pred, Ytest)
-print("Final training score: {}".format(score))
+print("Final classification rate: {:.2f}".format(score))
