@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
-from util import *
+import util
 
 class ANN():
     def __init__(self):
@@ -58,7 +58,7 @@ class ANN():
             pY (array): a matrix showing the probability of each data point beloning to each class
         """
         # use dictionary to store different activation functions instead of many ifs
-        activate = {'relu':relu, 'tanh': tanh, 'sigmoid':sigmoid}
+        activate = {'relu':util.relu, 'tanh':util.tanh, 'sigmoid':util.sigmoid}
 
         layers = len(weights.keys())
         Z = {}     
@@ -73,13 +73,13 @@ class ANN():
         
         # pY_given_x
         z_list = list(Z.keys())
-        pY = softmax(Z[z_list[-1]].dot(weights[layers-1]) + biases[layers-1])
+        pY = util.softmax(Z[z_list[-1]].dot(weights[layers-1]) + biases[layers-1])
 
         return Z, pY
     
     def __gradients(self, X, Y, weights, biases, Z, pY, activation_func):
         # store the derivative of each activation function in dict.
-        activate_deriv = {'relu':deriv_relu, 'tanh': deriv_tanh, 'sigmoid':deriv_sigmoid}
+        activate_deriv = {'relu':util.deriv_relu, 'tanh':util.deriv_tanh, 'sigmoid':util.deriv_sigmoid}
         
         n_grad = len(weights.keys())
         n_z = len(Z.keys())
@@ -110,17 +110,33 @@ class ANN():
 
         return w_grad, b_grad    
 
-    def __gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg, momentum, beta):
+    def __gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg, momentum, beta1, adam, beta2, epsilon):
         # update every weight vector / momentum
 
         n_weights = len(weights.keys())
         for i in range(n_weights):
-            if momentum:
+            if adam:
+                global mw, mb, vw, vb, mw_hat, mb_hat, vw_hat, vb_hat, t
+                mw[i] = beta1*mw[i] + (1-beta1)*w_grad[i] + reg*weights[i]
+                mb[i] = beta1*mb[i] + (1-beta1)*b_grad[i] + reg*biases[i]
+                vw[i] = beta2*vw[i] + (1-beta2)*(w_grad[i] + reg*weights[i])**2
+                vb[i] = beta2*vb[i] + (1-beta2)*(b_grad[i] + reg*biases[i])**2
+
+                mw_hat[i] = mw[i] / (1-beta1**t)
+                mb_hat[i] = mb[i] / (1-beta1**t)
+                vw_hat[i] = vw[i] / (1-beta2**t)
+                vb_hat[i] = vb[i] / (1-beta2**t)
+                
+                weights[i] = weights[i] - lr*(mw_hat[i]/np.sqrt(vw_hat[i] + epsilon))
+                biases[i] = biases[i] - lr*(mb_hat[i]/np.sqrt(vb_hat[i] + epsilon))
+
+            elif momentum:
                 global Vw, Vb
-                Vw[i] = beta * Vw[i] - lr * (w_grad[i] + reg*weights[i])
-                Vb[i] = beta * Vb[i] - lr * (b_grad[i] + reg*biases[i])
+                Vw[i] = beta1 * Vw[i] - lr * (w_grad[i] + reg*weights[i])
+                Vb[i] = beta1 * Vb[i] - lr * (b_grad[i] + reg*biases[i])
                 weights[i] = weights[i] + Vw[i]
                 biases[i] = biases[i] + Vb[i]
+
             else:
                 weights[i] = weights[i] - lr * (w_grad[i] + reg*weights[i])
                 biases[i] = biases[i] - lr * (b_grad[i] + reg*biases[i])
@@ -128,9 +144,9 @@ class ANN():
         return weights, biases
 
 
-    def __train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, beta1, adam, beta2, batch_size):
+    def __train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, beta1, adam, beta2, epsilon, batch_size):
         # handle most of the learning by calling relevant functions and looping
-        Ytrain_ind = y2indicator(Ytrain)
+        Ytrain_ind = util.y2indicator(Ytrain)
         N = Xtrain.shape[0]
         no_batch = N // batch_size
 
@@ -142,6 +158,13 @@ class ANN():
             global Vw, Vb
             Vw = {key: 0 for key in weights.keys()}
             Vb = {key: 0 for key in biases.keys()}
+        if adam:
+            global mw, mb, vw, vb, mw_hat, mb_hat, vw_hat, vb_hat, t
+            t=1
+            mw, mw_hat = {key: 0 for key in weights.keys()}, {key: 0 for key in weights.keys()}
+            mb, mb_hat = {key: 0 for key in biases.keys()}, {key: 0 for key in biases.keys()}
+            vw, vw_hat = {key: 0 for key in weights.keys()}, {key: 0 for key in weights.keys()}
+            vb, vb_hat = {key: 0 for key in biases.keys()}, {key: 0 for key in weights.keys()}
 
         for e in range(epochs):
             tmp_x, tmp_y = shuffle(Xtrain, Ytrain_ind)
@@ -153,21 +176,24 @@ class ANN():
                 Z, pY = self.__forward(X, weights, biases, activation_func)
 
                 w_grad, b_grad = self.__gradients(X, Y, weights, biases, Z, pY, activation_func)
-                weights, biases = self.__gradient_descent(w_grad, b_grad, weights, biases, lr, reg, momentum, beta1)
+                weights, biases = self.__gradient_descent(w_grad, b_grad, weights, biases, lr, reg, momentum, beta1, adam, beta2, epsilon)
+                if adam:
+                    t+=1
+
             
             # every 100 epoch, report how the training is going to the user
             if e % 100 == 0:
                 _, pY = self.__forward(Xtrain, weights, biases, activation_func)
-                ctrain = cost(Ytrain_ind, pY)
+                ctrain = util.cost(Ytrain_ind, pY)
                 train_cost.append(ctrain)
-                pred = prediction(pY)
-                e_rate = error_rate(Ytrain, pred) 
+                pred = util.prediction(pY)
+                e_rate = util.error_rate(Ytrain, pred) 
                 print("Epoch: {}, Train cost: {:.5f}, Error rate: {:.2f}".format(e, ctrain, e_rate))
         
         _, pY = self.__forward(Xtrain, weights, biases, activation_func)
-        ctrain = cost(Ytrain_ind, pY)
-        pred = prediction(pY)
-        e_rate = error_rate(Ytrain, pred) 
+        ctrain = util.cost(Ytrain_ind, pY)
+        pred = util.prediction(pY)
+        e_rate = util.error_rate(Ytrain, pred) 
         print("\nFinal training cost: {:.5f}, Final training error rate: {:.2f}".format(ctrain, e_rate))
 
     def plot_cost(self):
@@ -179,14 +205,14 @@ class ANN():
     def predict(self, Xtest):
         # use trained weights to predict Y for test set
          _, pYtest = self.__forward(Xtest, self.weights, self.biases, self.activation_func)
-         return prediction(pYtest)
+         return util.prediction(pYtest)
 
     def score(self, predicted_y, actual_y):
         # returns classifcation rate to the user
         return np.mean(predicted_y == actual_y)
 
 
-    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, batch_size=512, momentum=False, beta1=0.9, adam=False, beta2=0.99, activation_func='relu'):
+    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, batch_size=512, momentum=False, beta1=0.9, adam=False, beta2=0.99, epsilon=1e-8, activation_func='relu'):
         # the main function the user calls to create a model, this will call the necessary functions to train and report to the user
         X, Y = shuffle(X, Y)
 
@@ -198,15 +224,15 @@ class ANN():
 
         # use self instead of global, because user might want a report of weights/biases
         self.weights, self.biases = self.__generate_weights(D, hidden_layer_sizes, K)
-        self.__train(epochs, X, Y, self.weights, self.biases, lr, reg, activation_func, momentum, beta1, adam, beta2, batch_size)
+        self.__train(epochs, X, Y, self.weights, self.biases, lr, reg, activation_func, momentum, beta1, adam, beta2, epsilon, batch_size)
 
 
-Xtrain, Ytrain, Xtest, Ytest = load_example_data(split=True)
+Xtrain, Ytrain, Xtest, Ytest = util.load_example_data(split=True)
 
 test = ANN()
-test.fit(Xtrain, Ytrain, [200, 200], epochs=200, momentum=True)
+test.fit(Xtrain, Ytrain, [200, 200], epochs=200, adam=True)
 test.plot_cost()
 
 pred = test.predict(Xtest)
 score = test.score(pred, Ytest)
-print("Final classification rate: {:.2f}".format(score))
+print("Final classification rate with adam: {:.2f}".format(score))
