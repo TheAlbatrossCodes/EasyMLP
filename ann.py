@@ -8,12 +8,26 @@ class ANN():
         pass
     
     def __generate_weights(self, D, hidden_layer_sizes, K):
+        """
+        Generates weights and biases. Since we're leaving the number of hidden layers up to the user
+        this becomes a bit tricky.
+        In order to avoid any unnecessary problems, such as vanishing gradients etc., we'll divide each weight marix
+        by the square root of the matrix's row number.
+
+        Args:
+            D ([int]): Dimensionality of the dataset (number of features)
+            hidden_layer_sizes ([list]): the size & the number of the hidden layer fit() was called with
+            K ([int]): Number of classes in your dataset (targets)
+
+        Returns:
+            weights, biases [dict]: dictionaries containing the requisite number of weights and biases needed to train the model 
+        """
         # find no. hidden layers
         size = len(hidden_layer_sizes)
         weights = {}
         biases = {}
         
-        # input to first hidden later weights
+        # input to first hidden layer weights
         weights[0] = np.random.randn(D, hidden_layer_sizes[0]) / np.sqrt(D)
         biases[0] = np.zeros(hidden_layer_sizes[0])
         
@@ -28,8 +42,22 @@ class ANN():
         
         return weights, biases
 
-    def __forward(self, X, weights, biases, activation_func='relu'):
-        # use dictionary to store different activation function instead of many ifs
+    def __forward(self, X, weights, biases, activation_func):
+        """
+        This is the feed-forward section of the neural network, where we actually feed the network data
+        and ask it to predict it's class for us
+
+        Args:
+            X (array): your training data
+            weights (dict): a dictionary containing the model's weights
+            biases (dict): a dict containing the model's biases
+            activation_func (str): activation function, as given to us by the fit() method
+
+        Returns:
+            Z (dict): contains the activated regression function at each hidden layer.
+            pY (array): a matrix showing the probability of each data point beloning to each class
+        """
+        # use dictionary to store different activation functions instead of many ifs
         activate = {'relu':relu, 'tanh': tanh, 'sigmoid':sigmoid}
 
         layers = len(weights.keys())
@@ -100,7 +128,7 @@ class ANN():
         return weights, biases
 
 
-    def __train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, beta, show_fig, batch_size):
+    def __train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, beta1, adam, beta2, batch_size):
         # handle most of the learning by calling relevant functions and looping
         Ytrain_ind = y2indicator(Ytrain)
         N = Xtrain.shape[0]
@@ -125,18 +153,18 @@ class ANN():
                 Z, pY = self.__forward(X, weights, biases, activation_func)
 
                 w_grad, b_grad = self.__gradients(X, Y, weights, biases, Z, pY, activation_func)
-                weights, biases = self.__gradient_descent(w_grad, b_grad, weights, biases, lr, reg, momentum, beta)
+                weights, biases = self.__gradient_descent(w_grad, b_grad, weights, biases, lr, reg, momentum, beta1)
             
             # every 100 epoch, report how the training is going to the user
             if e % 100 == 0:
-                _, pY = self.__forward(Xtrain, weights, biases)
+                _, pY = self.__forward(Xtrain, weights, biases, activation_func)
                 ctrain = cost(Ytrain_ind, pY)
                 train_cost.append(ctrain)
                 pred = prediction(pY)
                 e_rate = error_rate(Ytrain, pred) 
                 print("Epoch: {}, Train cost: {:.5f}, Error rate: {:.2f}".format(e, ctrain, e_rate))
         
-        _, pY = self.__forward(Xtrain, weights, biases)
+        _, pY = self.__forward(Xtrain, weights, biases, activation_func)
         ctrain = cost(Ytrain_ind, pY)
         pred = prediction(pY)
         e_rate = error_rate(Ytrain, pred) 
@@ -150,7 +178,7 @@ class ANN():
 
     def predict(self, Xtest):
         # use trained weights to predict Y for test set
-         _, pYtest = self.__forward(Xtest, self.weights, self.biases)
+         _, pYtest = self.__forward(Xtest, self.weights, self.biases, self.activation_func)
          return prediction(pYtest)
 
     def score(self, predicted_y, actual_y):
@@ -158,16 +186,19 @@ class ANN():
         return np.mean(predicted_y == actual_y)
 
 
-    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, batch_size=512, momentum=False, beta=0.9, activation_func='relu', show_fig=True):
+    def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, batch_size=512, momentum=False, beta1=0.9, adam=False, beta2=0.99, activation_func='relu'):
         # the main function the user calls to create a model, this will call the necessary functions to train and report to the user
         X, Y = shuffle(X, Y)
 
         D = X.shape[1]
         K = len(set(Y))
         
+        # store activation function in an attribute as well
+        self.activation_func = activation_func
+
         # use self instead of global, because user might want a report of weights/biases
         self.weights, self.biases = self.__generate_weights(D, hidden_layer_sizes, K)
-        self.__train(epochs, X, Y, self.weights, self.biases, lr, reg, activation_func, momentum, beta, show_fig, batch_size)
+        self.__train(epochs, X, Y, self.weights, self.biases, lr, reg, activation_func, momentum, beta1, adam, beta2, batch_size)
 
 
 Xtrain, Ytrain, Xtest, Ytest = load_example_data(split=True)
