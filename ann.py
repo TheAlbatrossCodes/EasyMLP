@@ -12,15 +12,7 @@ class ANN():
         Generates weights and biases. Since we're leaving the number of hidden layers up to the user
         this becomes a bit tricky.
         In order to avoid any unnecessary problems, such as vanishing gradients etc., we'll divide each weight marix
-        by the square root of the matrix's row number.
-
-        Args:
-            D ([int]): Dimensionality of the dataset (number of features)
-            hidden_layer_sizes ([list]): the size & the number of the hidden layer fit() was called with
-            K ([int]): Number of classes in your dataset (targets)
-
-        Returns:
-            weights, biases [dict]: dictionaries containing the requisite number of weights and biases needed to train the model 
+        by the square root of the matrix's row number.l 
         """
         # find no. hidden layers
         size = len(hidden_layer_sizes)
@@ -46,16 +38,6 @@ class ANN():
         """
         This is the feed-forward section of the neural network, where we actually feed the network data
         and ask it to predict it's class for us
-
-        Args:
-            X (array): your training data
-            weights (dict): a dictionary containing the model's weights
-            biases (dict): a dict containing the model's biases
-            activation_func (str): activation function, as given to us by the fit() method
-
-        Returns:
-            Z (dict): contains the activated regression function at each hidden layer.
-            pY (array): a matrix showing the probability of each data point beloning to each class
         """
         # use dictionary to store different activation functions instead of many ifs
         activate = {'relu':util.relu, 'tanh':util.tanh, 'sigmoid':util.sigmoid}
@@ -78,6 +60,12 @@ class ANN():
         return Z, pY
     
     def __gradients(self, X, Y, weights, biases, Z, pY, activation_func):
+        """
+        This function will calculate the gradients of weights and biases
+        We don't have automatic derivations, so we'll have to calulate them
+        by hand and use the recursive nature of backprop to make things work
+        in many layers.
+        """
         # store the derivative of each activation function in dict.
         activate_deriv = {'relu':util.deriv_relu, 'tanh':util.deriv_tanh, 'sigmoid':util.deriv_sigmoid}
         
@@ -111,8 +99,11 @@ class ANN():
         return w_grad, b_grad    
 
     def __gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg, momentum, beta1, adam, beta2, epsilon):
-        # update every weight vector / momentum
-
+        """
+        This function does the gradient descent. Keep in mind that we can only have
+        one optimizer. This means if we can either have momentum or Adam, and if both
+        are true, Adam takes precedence.
+        """
         n_weights = len(weights.keys())
         for i in range(n_weights):
             if adam:
@@ -145,7 +136,10 @@ class ANN():
 
 
     def __train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, beta1, adam, beta2, epsilon, batch_size):
-        # handle most of the learning by calling relevant functions and looping
+        """
+        This is where training gets done, meaning this is where we do our epochs, calculate
+        cost, handle batches/momentum etc.
+        """
         Ytrain_ind = util.y2indicator(Ytrain)
         N = Xtrain.shape[0]
         no_batch = N // batch_size
@@ -197,42 +191,68 @@ class ANN():
         print("\nFinal training cost: {:.5f}, Final training error rate: {:.2f}".format(ctrain, e_rate))
 
     def plot_cost(self):
+        """
+        You can call this function to plot the training cost
+        of your model, but you're better off just doing it yourself
+        """
         # plot how the cost has changed during epochs
         global train_cost
         plt.plot(train_cost)
         plt.show(block=False)
 
     def predict(self, Xtest):
+        """
+        This is the function through which you test the accuracy of your model.
+        It bascially takes your test set in and predicts the labels, based on
+        the weights you have trained.
+        """
         # use trained weights to predict Y for test set
-         _, pYtest = self.__forward(Xtest, self.weights, self.biases, self.activation_func)
-         return util.prediction(pYtest)
+        _, pYtest = self.__forward(Xtest, self.weights, self.biases, self.activation_func)
+        return util.prediction(pYtest)
 
     def score(self, predicted_y, actual_y):
+        """
+        This function will return the classification rate of the model
+        to the user. 
+        """
         # returns classifcation rate to the user
         return np.mean(predicted_y == actual_y)
 
 
     def fit(self, X, Y, hidden_layer_sizes, lr=1e-6, reg=0.01, epochs=1000, batch_size=512, momentum=False, beta1=0.9, adam=False, beta2=0.99, epsilon=1e-8, activation_func='relu'):
+        """
+        Creates a neural network based on your specifications.
+        Args:
+            X (array): the input data
+            Y (array): the labels for the input data
+            hidden_layer_sizes (list): the number of neurons in each hidden layer, must be
+                                        a list, e.g. [100] will create 1 hidden layer with
+                                        100 neurons, [100, 100] will create 2 hidden layers
+                                        with 100 neurons each, and so on
+            lr (float): The learning rate. Defaults to 1e-6.
+            reg (float): Regularization parameter. Defaults to 0.01.
+            epochs (int): The number of epochs we train the model for. Defaults to 1000.
+            batch_size (int, optional): The size of each batch for mini-batch gradient descent. Defaults to 512.
+            momentum (bool): Whether or not you'd like the mode to be trained with momentum. Defaults to False.
+            beta1 (float): Sets the momentum parameter. Defaults to 0.9.
+            adam (bool): Whether or not you'd like the model to be trained with Adam optimizer. Defaults to False.
+                                   if adam and momentum are both True, the model will be trained with adam only.
+            beta2 (float): Decay parameter (adam parameter). Defaults to 0.99.
+            epsilon (float): The adam constant. Defaults to 1e-8.
+            activation_func (str): The actication function for the model. Can be a string of 'sigmoid', 'tanh' or 'relu'.Defaults to 'relu'.
+        """
         # the main function the user calls to create a model, this will call the necessary functions to train and report to the user
         X, Y = shuffle(X, Y)
 
         D = X.shape[1]
         K = len(set(Y))
-        
+
+        # take care of accidental int type assignment
+        if type(hidden_layer_sizes) == int:
+            hidden_layer_sizes = [hidden_layer_sizes]
         # store activation function in an attribute as well
         self.activation_func = activation_func
 
         # use self instead of global, because user might want a report of weights/biases
         self.weights, self.biases = self.__generate_weights(D, hidden_layer_sizes, K)
         self.__train(epochs, X, Y, self.weights, self.biases, lr, reg, activation_func, momentum, beta1, adam, beta2, epsilon, batch_size)
-
-
-Xtrain, Ytrain, Xtest, Ytest = util.load_example_data(split=True)
-
-test = ANN()
-test.fit(Xtrain, Ytrain, [200, 200], epochs=200, adam=True)
-test.plot_cost()
-
-pred = test.predict(Xtest)
-score = test.score(pred, Ytest)
-print("Final classification rate with adam: {:.2f}".format(score))
