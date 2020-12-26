@@ -1,10 +1,10 @@
 from util import load_example_data
-from ann import ANN
+from mlp import MLP
 
 Xtrain, Ytrain, Xtest, Ytest = load_example_data(split=True)
 
-model = ANN()
-model.fit(Xtrain, Ytrain, [200], adam=True)
+model = MLP()
+model.fit(Xtrain, Ytrain, [200, 200], adam=True)
 model.plot_cost()
 
 pred = model.predict(Xtest)

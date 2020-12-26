@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 import util
 
-class ANN():
+class MLP():
     def __init__(self):
         pass
     
@@ -250,6 +250,7 @@ class ANN():
         # take care of accidental int type assignment
         if type(hidden_layer_sizes) == int:
             hidden_layer_sizes = [hidden_layer_sizes]
+
         # store activation function in an attribute as well
         self.activation_func = activation_func
 

@@ -17,7 +17,7 @@ def deriv_sigmoid(x):
     return x * (1 - x)
 
 
-# tanh
+# wrapper around numpy's tanh
 def tanh(z):
     return np.tanh(z)
 
