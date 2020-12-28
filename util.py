@@ -79,7 +79,7 @@ def error_rate(T, pY):
         return np.mean(T != pY)
 
 
-def load_example_data(binary=False, split=False, split_by=0.33):
+def load_example_data(split=False, split_by=0.33):
     # read MNIST data
     with open("train.csv", 'r') as f:
         csv_file = csv.reader(f, delimiter=',')
