@@ -1,6 +1,6 @@
 """
 Hosts a couple of useful Machine Learning functions
-Returns a ready-to-be-used MNIST dataset (you must have the initial file, however)
+Can also return an example classification/regression dataset (MNIST, USA Housing)
 """
 
 import numpy as np
@@ -64,6 +64,8 @@ def binary_cost(T, pY):
 def cost(T, pY_softmax):
     return -(T*np.log(pY_softmax)).mean()
 
+def mse(Y, pY):
+    return np.mean((Y-pY)**2)
 
 # predict
 def prediction(pY_softmax):
@@ -79,8 +81,18 @@ def error_rate(T, pY):
         return np.mean(T != pY)
 
 
+def splitter(X, Y, split_by):
+    N = X.shape[0]
+    split_amount = int(N*split_by)
+    Xtrain, Ytrain = X[:-split_amount], Y[:-split_amount]
+    Xtest, Ytest = X[-split_amount:], Y[-split_amount:]
+    return Xtrain, Ytrain, Xtest, Ytest
+
+
 def load_example_data(split=False, split_by=0.33):
-    # read MNIST data
+    # dataset can be downloaded from https://www.kaggle.com/c/digit-recognizer/
+
+    # open only the train file
     with open("train.csv", 'r') as f:
         csv_file = csv.reader(f, delimiter=',')
         next(csv_file)
@@ -102,11 +114,34 @@ def load_example_data(split=False, split_by=0.33):
     X = (X - X_mean) / X_std
 
     if split:
-        N = X.shape[0]
-        split_amount = int(N*split_by)
-        Xtrain, Ytrain = X[:-split_amount], Y[:-split_amount]
-        Xtest, Ytest = X[-split_amount:], Y[-split_amount:]
-        return Xtrain, Ytrain, Xtest, Ytest
+        return splitter(X, Y, split_by)
 
     else:
         return X, Y
+
+
+def load_regression_data(split=False, split_by=0.33):
+    # dataset can be downloaded from https://www.kaggle.com/vedavyasv/usa-housing
+    
+    with open("USA_Housing.csv", 'r') as f:
+        csv_file = csv.reader(f, delimiter=',')
+        next(csv_file)
+        content = []
+        for row in csv_file:
+            content.append(row)
+        data = np.array(content)
+        Y = data[:, 5]
+        X = data[:, :5]
+
+        Y = Y.astype(np.float32)
+        X = X.astype(np.float32)
+        
+        X_mean = X.mean(axis=0)
+        X_std = X.std(axis=0)
+        X = (X - X_mean) / X_std
+
+        if split:
+            return splitter(X, Y, split_by)
+        
+        else:
+            return X, Y
