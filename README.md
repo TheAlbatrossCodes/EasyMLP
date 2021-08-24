@@ -11,3 +11,5 @@ Keep in mind that we only use the `train.csv` file and **NOT** the `test.csv` fi
 The file is well commented/documented and I have tried my best to implement things correctly, but should you have any questions or complaints, feel free to ask them. You can also report any issues that you see and we'll take care of them. Perhaps together!  
 
 - `test.py` contains an example on how you should train your model using our code. It's pretty simple really, if you have used `sklearn`, you can use this.  
+
+Keep in mind that you need to have the MNIST dataset files in the same directory as our files.

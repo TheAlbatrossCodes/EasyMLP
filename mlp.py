@@ -1,18 +1,21 @@
+"""
+This is one of the very first programs I wrote. In this program, we try
+to use the recursive nature of the Backpropagation algorithm to
+implement a fully customizable MLP model.
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 import util
 
-class MLP():
-    def __init__(self):
-        pass
-    
+class MLPClassifier:    
     def __generate_weights(self, D, hidden_layer_sizes, K):
         """
-        Generates weights and biases. Since we're leaving the number of hidden layers up to the user
-        this becomes a bit tricky.
-        In order to avoid any unnecessary problems, such as vanishing gradients etc., we'll divide each weight marix
-        by the square root of the matrix's row number.l 
+        Generates weights and biases. Since we're leaving the number of
+        hidden layers up to the user this becomes a bit tricky.
+        In order to avoid any unnecessary problems, such as vanishing
+        gradients etc., we'll divide each weight marix by the square
+        root of the matrix's row number.l 
         """
         # find no. hidden layers
         size = len(hidden_layer_sizes)
@@ -36,8 +39,9 @@ class MLP():
 
     def __forward(self, X, weights, biases, activation_func):
         """
-        This is the feed-forward section of the neural network, where we actually feed the network data
-        and ask it to predict it's class for us
+        This is the feed-forward section of the neural network, where we
+        actually feed the network data and ask it to predict it's class
+        for us
         """
         # use dictionary to store different activation functions instead of many ifs
         activate = {'relu':util.relu, 'tanh':util.tanh, 'sigmoid':util.sigmoid}
@@ -62,9 +66,9 @@ class MLP():
     def __gradients(self, X, Y, weights, biases, Z, pY, activation_func):
         """
         This function will calculate the gradients of weights and biases
-        We don't have automatic derivations, so we'll have to calulate them
-        by hand and use the recursive nature of backprop to make things work
-        in many layers.
+        We don't have automatic derivations, so we'll have to calulate
+        them by hand and use the recursive nature of backprop to make
+        things work in many layers.
         """
         # store the derivative of each activation function in dict.
         activate_deriv = {'relu':util.deriv_relu, 'tanh':util.deriv_tanh, 'sigmoid':util.deriv_sigmoid}
@@ -100,9 +104,9 @@ class MLP():
 
     def __gradient_descent(self, w_grad, b_grad, weights, biases, lr, reg, momentum, beta1, adam, beta2, epsilon):
         """
-        This function does the gradient descent. Keep in mind that we can only have
-        one optimizer. This means if we can either have momentum or Adam, and if both
-        are true, Adam takes precedence.
+        This function does the gradient descent. Keep in mind that we
+        can only have one optimizer. This means if we can either have
+        momentum or Adam, and if both are true, Adam takes precedence.
         """
         n_weights = len(weights.keys())
         for i in range(n_weights):
@@ -137,8 +141,8 @@ class MLP():
 
     def __train(self, epochs, Xtrain, Ytrain, weights, biases, lr, reg, activation_func, momentum, beta1, adam, beta2, epsilon, batch_size):
         """
-        This is where training gets done, meaning this is where we do our epochs, calculate
-        cost, handle batches/momentum etc.
+        This is where training gets done, meaning this is where we do
+        our epochs, calculate cost, handle batches/momentum etc.
         """
         Ytrain_ind = util.y2indicator(Ytrain)
         N = Xtrain.shape[0]
@@ -192,8 +196,8 @@ class MLP():
 
     def plot_cost(self):
         """
-        You can call this function to plot the training cost
-        of your model, but you're better off just doing it yourself
+        You can call this function to plot the training cost of your
+        model, but you're better off just doing it yourself
         """
         # plot how the cost has changed during epochs
         global train_cost
@@ -202,9 +206,10 @@ class MLP():
 
     def predict(self, Xtest):
         """
-        This is the function through which you test the accuracy of your model.
-        It bascially takes your test set in and predicts the labels, based on
-        the weights you have trained.
+        This is the function through which you test the accuracy of your
+        model.
+        It bascially takes your test set in and predicts the labels,
+        based on the weights you have trained.
         """
         # use trained weights to predict Y for test set
         _, pYtest = self.__forward(Xtest, self.weights, self.biases, self.activation_func)
@@ -225,23 +230,31 @@ class MLP():
         Args:
             X (array): the input data
             Y (array): the labels for the input data
-            hidden_layer_sizes (list): the number of neurons in each hidden layer, must be
-                                        a list, e.g. [100] will create 1 hidden layer with
-                                        100 neurons, [100, 100] will create 2 hidden layers
-                                        with 100 neurons each, and so on
+            hidden_layer_sizes (list): the number of neurons in each
+              hidden layer, must be a list, e.g. [100] will create 1 
+              hidden layer with 100 neurons, [100, 100] will create 2 
+            hidden layers with 100 neurons each, and so on
             lr (float): The learning rate. Defaults to 1e-6.
             reg (float): Regularization parameter. Defaults to 0.01.
-            epochs (int): The number of epochs we train the model for. Defaults to 1000.
-            batch_size (int, optional): The size of each batch for mini-batch gradient descent. Defaults to 512.
-            momentum (bool): Whether or not you'd like the mode to be trained with momentum. Defaults to False.
+            epochs (int): The number of epochs we train the model for.
+              Defaults to 1000.
+            batch_size (int, optional): The size of each batch for
+              mini-batch gradient descent. Defaults to 512.
+            momentum (bool): Whether or not you'd like the mode to be
+              trained with momentum. Defaults to False.
             beta1 (float): Sets the momentum parameter. Defaults to 0.9.
-            adam (bool): Whether or not you'd like the model to be trained with Adam optimizer. Defaults to False.
-                                   if adam and momentum are both True, the model will be trained with adam only.
-            beta2 (float): Decay parameter (adam parameter). Defaults to 0.99.
+            adam (bool): Whether or not you'd like the model to be
+              trained with Adam optimizer. If adam and momentum are both
+              True, the model will be trained with adam only.
+              Defaults to False.
+            beta2 (float): Decay parameter (adam parameter). 
+              Defaults to 0.99.
             epsilon (float): The adam constant. Defaults to 1e-8.
-            activation_func (str): The actication function for the model. Can be a string of 'sigmoid', 'tanh' or 'relu'.Defaults to 'relu'.
+            activation_func (str): The activation function for the model.
+              Can be a string of 'sigmoid', 'tanh' or 'relu'.Defaults to 'relu'.
         """
-        # the main function the user calls to create a model, this will call the necessary functions to train and report to the user
+        # the main function the user calls to create a model, this will
+        #  call the necessary functions to train and report to the user
         X, Y = shuffle(X, Y)
 
         D = X.shape[1]
